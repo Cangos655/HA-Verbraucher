@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Design A – Kompakte Liste</title>
+<style>
+  body { background: #111827; display: flex; align-items: flex-start; justify-content: center; padding: 40px 20px; font-family: 'Roboto', sans-serif; min-height: 100vh; margin: 0; box-sizing: border-box; }
+  .card { background: #1f2937; border-radius: 16px; width: 320px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,.4); }
+  .card-header { padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,.08); }
+  .card-title { font-size: 14px; font-weight: 500; color: rgba(255,255,255,.6); letter-spacing: .5px; text-transform: uppercase; }
+  .total-kwh { font-size: 22px; font-weight: 700; color: #fff; text-align: right; }
+  .total-label { font-size: 11px; color: rgba(255,255,255,.4); text-align: right; }
+  .device-row { display: flex; align-items: center; padding: 12px 20px; gap: 14px; border-bottom: 1px solid rgba(255,255,255,.05); transition: background .15s; cursor: pointer; }
+  .device-row:last-child { border-bottom: none; }
+  .device-row:hover { background: rgba(255,255,255,.04); }
+  .icon { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+  .icon.active { background: rgba(99,179,237,.15); }
+  .icon.idle { background: rgba(255,255,255,.06); }
+  .device-info { flex: 1; }
+  .device-name { font-size: 14px; color: #e5e7eb; font-weight: 500; }
+  .values { text-align: right; }
+  .power-val { font-size: 15px; font-weight: 600; }
+  .power-val.active { color: #63b3ed; }
+  .power-val.idle { color: rgba(255,255,255,.3); }
+  .energy-val { font-size: 11px; color: rgba(255,255,255,.4); margin-top: 1px; }
+  .label { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); background: rgba(99,179,237,.2); color: #63b3ed; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 20px; letter-spacing: .5px; }
+  .wrapper { position: relative; }
+</style>
+</head>
+<body>
+<div class="wrapper">
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Verbraucher</div>
+      <div>
+        <div class="total-kwh">8.4 kWh</div>
+        <div class="total-label">Heute gesamt</div>
+      </div>
+    </div>
+    <div class="device-row">
+      <div class="icon active">🫧</div>
+      <div class="device-info"><div class="device-name">Waschmaschine</div></div>
+      <div class="values"><div class="power-val active">1.850 W</div><div class="energy-val">2.1 kWh</div></div>
+    </div>
+    <div class="device-row">
+      <div class="icon active">🌀</div>
+      <div class="device-info"><div class="device-name">Trockner</div></div>
+      <div class="values"><div class="power-val active">2.400 W</div><div class="energy-val">3.8 kWh</div></div>
+    </div>
+    <div class="device-row">
+      <div class="icon idle">❄️</div>
+      <div class="device-info"><div class="device-name">Kühlschrank</div></div>
+      <div class="values"><div class="power-val idle">8 W</div><div class="energy-val">0.9 kWh</div></div>
+    </div>
+    <div class="device-row">
+      <div class="icon idle">📺</div>
+      <div class="device-info"><div class="device-name">Fernseher</div></div>
+      <div class="values"><div class="power-val idle">0 W</div><div class="energy-val">1.6 kWh</div></div>
+    </div>
+    <div class="device-row">
+      <div class="icon idle">💡</div>
+      <div class="device-info"><div class="device-name">Beleuchtung</div></div>
+      <div class="values"><div class="power-val idle">24 W</div><div class="energy-val">0.0 kWh</div></div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
