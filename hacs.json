@@ -1,0 +1,6 @@
+{
+  "name": "Verbraucher Card",
+  "content_type": "plugin",
+  "filename": "dist/verbraucher-card.js",
+  "render_readme": true
+}
