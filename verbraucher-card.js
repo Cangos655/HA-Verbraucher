@@ -1,4 +1,4 @@
-const VERSION = "0.5.0";
+const VERSION = "0.6.0";
 
 const loadEntityPicker = async () => {
   if (customElements.get("ha-entity-picker")) return;
@@ -299,12 +299,20 @@ class VerbraucherCardEditor extends HTMLElement {
     this.attachShadow({ mode: "open" });
     this._config = {};
     this._hass = null;
+    this._rendered = false;
   }
 
   async setConfig(config) {
+    const prevLen = (this._config?.entities ?? []).length;
+    const newLen  = (config.entities ?? []).length;
     this._config = { ...config };
-    await loadEntityPicker();
-    this._render();
+    if (!this._rendered) {
+      await loadEntityPicker();
+      this._render();
+      this._rendered = true;
+    } else if (newLen !== prevLen) {
+      this._render();
+    }
   }
 
   set hass(hass) {
