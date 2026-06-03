@@ -1,4 +1,4 @@
-const VERSION = "0.3.0";
+const VERSION = "0.4.0";
 
 const loadEntityPicker = async () => {
   if (customElements.get("ha-entity-picker")) return;
@@ -327,9 +327,23 @@ class VerbraucherCardEditor extends HTMLElement {
 
     this.shadowRoot.innerHTML = `
       <style>
-        .editor { display: flex; flex-direction: column; gap: 12px; padding: 4px 0; }
-        ha-textfield { display: block; width: 100%; }
+        * { box-sizing: border-box; }
+        .editor { display: flex; flex-direction: column; gap: 14px; padding: 4px 0; }
         ha-entity-picker, ha-icon-picker { display: block; width: 100%; }
+        .field { display: flex; flex-direction: column; gap: 4px; }
+        .field label { font-size: 12px; color: var(--secondary-text-color, #888); font-weight: 500; }
+        .field input {
+          width: 100%;
+          padding: 8px 0 6px;
+          border: none;
+          border-bottom: 1px solid var(--divider-color, rgba(0,0,0,.2));
+          background: transparent;
+          color: var(--primary-text-color, #333);
+          font-size: 14px;
+          font-family: inherit;
+          outline: none;
+        }
+        .field input:focus { border-bottom: 2px solid var(--primary-color, #1e88e5); }
         .section-header {
           display: flex;
           justify-content: space-between;
@@ -345,7 +359,7 @@ class VerbraucherCardEditor extends HTMLElement {
           padding: 12px;
           display: flex;
           flex-direction: column;
-          gap: 8px;
+          gap: 10px;
         }
         .entry-header {
           display: flex;
@@ -360,7 +374,10 @@ class VerbraucherCardEditor extends HTMLElement {
       </style>
 
       <div class="editor">
-        <ha-textfield id="title" label="Titel (optional)" value="${c.title ?? ""}"></ha-textfield>
+        <div class="field">
+          <label>Titel</label>
+          <input type="text" id="title" placeholder="Verbraucher" value="${c.title ?? ""}" />
+        </div>
 
         <div class="section-header">
           <span>Verbraucher</span>
@@ -375,7 +392,10 @@ class VerbraucherCardEditor extends HTMLElement {
                 <ha-icon icon="mdi:delete"></ha-icon>
               </ha-icon-button>
             </div>
-            <ha-textfield id="name-${i}" label="Name *"></ha-textfield>
+            <div class="field">
+              <label>Name</label>
+              <input type="text" id="name-${i}" placeholder="z.B. Waschmaschine" />
+            </div>
             <ha-entity-picker id="entity-${i}" label="Leistungs-Sensor (W)"></ha-entity-picker>
             <ha-icon-picker id="icon-${i}" label="Icon (optional)"></ha-icon-picker>
           </div>
@@ -384,7 +404,7 @@ class VerbraucherCardEditor extends HTMLElement {
     `;
 
     // Title
-    this.shadowRoot.getElementById("title").addEventListener("change", ev => {
+    this.shadowRoot.getElementById("title").addEventListener("input", ev => {
       this._config = { ...this._config, title: ev.target.value || undefined };
       this._fire();
     });
@@ -414,7 +434,7 @@ class VerbraucherCardEditor extends HTMLElement {
     entries.forEach((e, i) => {
       const nf = this.shadowRoot.getElementById(`name-${i}`);
       if (nf) {
-        nf.value = e.name ?? "";
+        nf.value = e.name ?? "";          // set as JS property after render
         nf.addEventListener("input", ev => {
           const ents = [...this._config.entities];
           ents[i] = { ...ents[i], name: ev.target.value || undefined };
