@@ -1,4 +1,4 @@
-const VERSION = "0.2.0";
+const VERSION = "0.3.0";
 
 const loadEntityPicker = async () => {
   if (customElements.get("ha-entity-picker")) return;
@@ -195,7 +195,7 @@ class VerbraucherCard extends HTMLElement {
           </div>
           <div class="total-row">
             <span class="total-num" id="total-num">–</span>
-            <span class="total-unit">kWh heute</span>
+            <span class="total-unit" id="total-unit">${entries.some(e => e.energy_entity) ? "kWh heute" : "W gesamt"}</span>
           </div>
         </div>
         <div class="body">
@@ -213,10 +213,11 @@ class VerbraucherCard extends HTMLElement {
                         <span class="val" id="power-${i}">–</span>
                         <span class="unit">W</span>
                       </div>
+                      ${e.energy_entity ? `
                       <div class="val-block">
                         <span class="val" id="energy-${i}">–</span>
                         <span class="unit">kWh</span>
-                      </div>
+                      </div>` : ""}
                     </div>
                   </div>
                   <div class="bar-track">
@@ -238,12 +239,15 @@ class VerbraucherCard extends HTMLElement {
     const maxPower = Math.max(...powers, 1);
     const totalEnergy = entries.reduce((s, e) => s + this._energy(e), 0);
 
+    const hasEnergy = entries.some(e => e.energy_entity);
     const totalEl = this.shadowRoot.getElementById("total-num");
     if (totalEl) {
-      totalEl.textContent = totalEnergy.toLocaleString("de-DE", {
-        minimumFractionDigits: 1,
-        maximumFractionDigits: 2,
-      });
+      if (hasEnergy) {
+        totalEl.textContent = totalEnergy.toLocaleString("de-DE", { minimumFractionDigits: 1, maximumFractionDigits: 2 });
+      } else {
+        const totalPower = powers.reduce((s, p) => s + p, 0);
+        totalEl.textContent = totalPower.toLocaleString("de-DE", { maximumFractionDigits: 0 });
+      }
     }
 
     entries.forEach((entry, i) => {
@@ -371,9 +375,8 @@ class VerbraucherCardEditor extends HTMLElement {
                 <ha-icon icon="mdi:delete"></ha-icon>
               </ha-icon-button>
             </div>
-            <ha-entity-picker id="entity-${i}" label="Leistungs-Sensor (W) *"></ha-entity-picker>
-            <ha-entity-picker id="energy-${i}" label="Energie-Sensor (kWh) *"></ha-entity-picker>
-            <ha-textfield id="name-${i}" label="Name (optional)" value="${e.name ?? ""}"></ha-textfield>
+            <ha-textfield id="name-${i}" label="Name *"></ha-textfield>
+            <ha-entity-picker id="entity-${i}" label="Leistungs-Sensor (W)"></ha-entity-picker>
             <ha-icon-picker id="icon-${i}" label="Icon (optional)"></ha-icon-picker>
           </div>
         `).join("")}
@@ -389,7 +392,7 @@ class VerbraucherCardEditor extends HTMLElement {
     // Add
     this.shadowRoot.getElementById("add-btn").addEventListener("click", () => {
       const entities = [...(this._config.entities ?? [])];
-      entities.push({ entity: "", energy_entity: "" });
+      entities.push({ entity: "", name: "" });
       this._config = { ...this._config, entities };
       this._fire();
       this._render();
@@ -409,6 +412,17 @@ class VerbraucherCardEditor extends HTMLElement {
 
     // Per-entry fields
     entries.forEach((e, i) => {
+      const nf = this.shadowRoot.getElementById(`name-${i}`);
+      if (nf) {
+        nf.value = e.name ?? "";
+        nf.addEventListener("input", ev => {
+          const ents = [...this._config.entities];
+          ents[i] = { ...ents[i], name: ev.target.value || undefined };
+          this._config = { ...this._config, entities: ents };
+          this._fire();
+        });
+      }
+
       const ep = this.shadowRoot.getElementById(`entity-${i}`);
       if (ep) {
         if (this._hass) ep.hass = this._hass;
@@ -418,31 +432,6 @@ class VerbraucherCardEditor extends HTMLElement {
         ep.addEventListener("value-changed", ev => {
           const ents = [...this._config.entities];
           ents[i] = { ...ents[i], entity: ev.detail.value };
-          this._config = { ...this._config, entities: ents };
-          this._fire();
-        });
-      }
-
-      const en = this.shadowRoot.getElementById(`energy-${i}`);
-      if (en) {
-        if (this._hass) en.hass = this._hass;
-        en.value = e.energy_entity ?? "";
-        en.includeDomains = ["sensor"];
-        en.entityFilter = (s) => ["kWh", "Wh", "MWh"].includes(s.attributes.unit_of_measurement ?? "");
-        en.addEventListener("value-changed", ev => {
-          const ents = [...this._config.entities];
-          ents[i] = { ...ents[i], energy_entity: ev.detail.value };
-          this._config = { ...this._config, entities: ents };
-          this._fire();
-        });
-      }
-
-      const nf = this.shadowRoot.getElementById(`name-${i}`);
-      if (nf) {
-        nf.value = e.name ?? "";
-        nf.addEventListener("change", ev => {
-          const ents = [...this._config.entities];
-          ents[i] = { ...ents[i], name: ev.target.value || undefined };
           this._config = { ...this._config, entities: ents };
           this._fire();
         });
