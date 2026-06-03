@@ -1,4 +1,4 @@
-const VERSION = "0.6.0";
+const VERSION = "0.7.0";
 
 const loadEntityPicker = async () => {
   if (customElements.get("ha-entity-picker")) return;
@@ -369,23 +369,40 @@ class VerbraucherCardEditor extends HTMLElement {
           display: flex;
           flex-direction: column;
           gap: 10px;
+          transition: opacity .15s, border-color .15s;
         }
+        .entry.dragging { opacity: 0.4; }
+        .entry.drag-over { border-color: var(--primary-color, #1e88e5); background: rgba(30,136,229,.04); }
         .entry-header {
           display: flex;
-          justify-content: space-between;
           align-items: center;
+          gap: 4px;
         }
+        .drag-handle {
+          cursor: grab;
+          color: var(--secondary-text-color, #aaa);
+          font-size: 20px;
+          line-height: 1;
+          padding: 0 4px 0 0;
+          user-select: none;
+          flex-shrink: 0;
+        }
+        .drag-handle:active { cursor: grabbing; }
         .entry-label {
+          flex: 1;
           font-size: 13px;
           font-weight: 500;
           color: var(--secondary-text-color);
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
         }
       </style>
 
       <div class="editor">
         <div class="field">
           <label>Titel</label>
-          <input type="text" id="title" placeholder="Verbraucher" value="${c.title ?? ""}" />
+          <input type="text" id="title" placeholder="Verbraucher" />
         </div>
 
         <div class="section-header">
@@ -394,9 +411,10 @@ class VerbraucherCardEditor extends HTMLElement {
         </div>
 
         ${entries.map((e, i) => `
-          <div class="entry">
+          <div class="entry" draggable="true" data-index="${i}">
             <div class="entry-header">
-              <span class="entry-label">Eintrag ${i + 1}</span>
+              <span class="drag-handle">⠿</span>
+              <span class="entry-label">${e.name ? e.name : "Eintrag " + (i + 1)}</span>
               <ha-icon-button data-remove="${i}">
                 <ha-icon icon="mdi:delete"></ha-icon>
               </ha-icon-button>
@@ -413,7 +431,9 @@ class VerbraucherCardEditor extends HTMLElement {
     `;
 
     // Title
-    this.shadowRoot.getElementById("title").addEventListener("input", ev => {
+    const titleEl = this.shadowRoot.getElementById("title");
+    titleEl.value = c.title ?? "";
+    titleEl.addEventListener("input", ev => {
       this._config = { ...this._config, title: ev.target.value || undefined };
       this._fire();
     });
@@ -439,11 +459,44 @@ class VerbraucherCardEditor extends HTMLElement {
       });
     });
 
+    // Drag-to-reorder
+    let dragSrc = null;
+    this.shadowRoot.querySelectorAll(".entry[draggable]").forEach(el => {
+      el.addEventListener("dragstart", ev => {
+        dragSrc = parseInt(el.dataset.index);
+        ev.dataTransfer.effectAllowed = "move";
+        setTimeout(() => el.classList.add("dragging"), 0);
+      });
+      el.addEventListener("dragend", () => {
+        el.classList.remove("dragging");
+        this.shadowRoot.querySelectorAll(".entry").forEach(e => e.classList.remove("drag-over"));
+      });
+      el.addEventListener("dragover", ev => {
+        ev.preventDefault();
+        ev.dataTransfer.dropEffect = "move";
+        this.shadowRoot.querySelectorAll(".entry").forEach(e => e.classList.remove("drag-over"));
+        el.classList.add("drag-over");
+      });
+      el.addEventListener("dragleave", () => el.classList.remove("drag-over"));
+      el.addEventListener("drop", ev => {
+        ev.preventDefault();
+        const toIdx = parseInt(el.dataset.index);
+        if (dragSrc === null || dragSrc === toIdx) return;
+        const entities = [...this._config.entities];
+        const [moved] = entities.splice(dragSrc, 1);
+        entities.splice(toIdx, 0, moved);
+        dragSrc = null;
+        this._config = { ...this._config, entities };
+        this._fire();
+        this._render();
+      });
+    });
+
     // Per-entry fields
     entries.forEach((e, i) => {
       const nf = this.shadowRoot.getElementById(`name-${i}`);
       if (nf) {
-        nf.value = e.name ?? "";          // set as JS property after render
+        nf.value = e.name ?? "";
         nf.addEventListener("input", ev => {
           const ents = [...this._config.entities];
           ents[i] = { ...ents[i], name: ev.target.value || undefined };
