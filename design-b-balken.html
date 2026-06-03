@@ -3,30 +3,33 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Design B – Balken-Visualisierung</title>
+<title>Design B – Balken-Visualisierung (Clima Style)</title>
 <style>
-  body { background: #111827; display: flex; align-items: flex-start; justify-content: center; padding: 40px 20px; font-family: 'Roboto', sans-serif; min-height: 100vh; margin: 0; box-sizing: border-box; }
-  .card { background: #1f2937; border-radius: 16px; width: 340px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,.4); }
-  .card-header { padding: 20px; background: linear-gradient(135deg, #1e3a5f 0%, #1f2937 100%); }
-  .card-title { font-size: 12px; font-weight: 600; color: rgba(255,255,255,.5); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; }
+  body { background: #0d1b2a; display: flex; align-items: flex-start; justify-content: center; padding: 40px 20px; font-family: 'Roboto', sans-serif; min-height: 100vh; margin: 0; box-sizing: border-box; }
+  .card { background: #132033; border-radius: 16px; width: 340px; overflow: hidden; box-shadow: 0 4px 28px rgba(0,0,0,.5), 0 1px 0 rgba(30,136,229,.15); }
+  .card-header { padding: 20px; background: linear-gradient(135deg, #1e88e5, #1565c0); }
+  .card-title { font-size: 12px; font-weight: 600; color: rgba(255,255,255,.6); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; }
   .total-row { display: flex; align-items: flex-end; gap: 8px; }
   .total-kwh { font-size: 36px; font-weight: 700; color: #fff; line-height: 1; }
-  .total-unit { font-size: 16px; color: rgba(255,255,255,.5); margin-bottom: 4px; }
+  .total-unit { font-size: 16px; color: rgba(255,255,255,.6); margin-bottom: 4px; }
   .card-body { padding: 8px 0 4px; }
-  .device-row { padding: 10px 20px; }
+  .device-row { padding: 10px 20px; border-bottom: 1px solid rgba(30,136,229,.1); transition: background .15s; }
+  .device-row:last-child { border-bottom: none; }
+  .device-row.active { background: rgba(30,136,229,.08); }
   .device-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
   .device-left { display: flex; align-items: center; gap: 10px; }
   .dev-icon { font-size: 16px; width: 20px; text-align: center; }
-  .device-name { font-size: 13px; color: #d1d5db; font-weight: 500; }
+  .device-name { font-size: 13px; color: rgba(255,255,255,.85); font-weight: 500; }
   .device-right { display: flex; gap: 16px; }
   .val-block { text-align: right; }
-  .val-num { font-size: 13px; font-weight: 600; color: #e5e7eb; }
+  .val-num { font-size: 13px; font-weight: 600; color: #fff; }
+  .val-num.active { color: #90caf9; }
   .val-unit { font-size: 10px; color: rgba(255,255,255,.4); }
   .bar-track { height: 4px; background: rgba(255,255,255,.08); border-radius: 2px; overflow: hidden; }
   .bar-fill { height: 100%; border-radius: 2px; transition: width .6s ease; }
-  .bar-fill.high { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
-  .bar-fill.mid  { background: linear-gradient(90deg, #10b981, #34d399); }
-  .bar-fill.low  { background: rgba(255,255,255,.2); }
+  .bar-fill.high { background: linear-gradient(90deg, #1565c0, #03a9f4); }
+  .bar-fill.mid  { background: linear-gradient(90deg, #1e88e5, #90caf9); }
+  .bar-fill.low  { background: rgba(30,136,229,.25); }
 </style>
 </head>
 <body>
@@ -39,21 +42,21 @@
     </div>
   </div>
   <div class="card-body">
-    <div class="device-row">
+    <div class="device-row active">
       <div class="device-top">
         <div class="device-left"><span class="dev-icon">🌀</span><span class="device-name">Trockner</span></div>
         <div class="device-right">
-          <div class="val-block"><div class="val-num">2.400</div><div class="val-unit">Watt</div></div>
+          <div class="val-block"><div class="val-num active">2.400</div><div class="val-unit">Watt</div></div>
           <div class="val-block"><div class="val-num">3.8</div><div class="val-unit">kWh</div></div>
         </div>
       </div>
       <div class="bar-track"><div class="bar-fill high" style="width:90%"></div></div>
     </div>
-    <div class="device-row">
+    <div class="device-row active">
       <div class="device-top">
         <div class="device-left"><span class="dev-icon">🫧</span><span class="device-name">Waschmaschine</span></div>
         <div class="device-right">
-          <div class="val-block"><div class="val-num">1.850</div><div class="val-unit">Watt</div></div>
+          <div class="val-block"><div class="val-num active">1.850</div><div class="val-unit">Watt</div></div>
           <div class="val-block"><div class="val-num">2.1</div><div class="val-unit">kWh</div></div>
         </div>
       </div>
