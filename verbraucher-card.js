@@ -1,4 +1,4 @@
-const VERSION = "0.4.0";
+const VERSION = "0.5.0";
 
 const loadEntityPicker = async () => {
   if (customElements.get("ha-entity-picker")) return;
@@ -115,11 +115,11 @@ class VerbraucherCard extends HTMLElement {
 
         .row {
           padding: 10px 20px;
-          border-bottom: 1px solid rgba(30,136,229,.1);
+          border-bottom: 1px solid var(--divider-color, rgba(0,0,0,.1));
           transition: background .2s;
         }
         .row:last-child { border-bottom: none; }
-        .row.active { background: rgba(30,136,229,.08); }
+        .row.active { background: rgba(30,136,229,.06); }
 
         .row-top {
           display: flex;
@@ -135,13 +135,13 @@ class VerbraucherCard extends HTMLElement {
         }
         .icon {
           --mdc-icon-size: 18px;
-          color: #90caf9;
+          color: var(--primary-color, #1e88e5);
           flex-shrink: 0;
         }
         .name {
           font-size: 13px;
           font-weight: 500;
-          color: rgba(255,255,255,.85);
+          color: var(--primary-text-color);
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
@@ -155,18 +155,19 @@ class VerbraucherCard extends HTMLElement {
         .val {
           font-size: 13px;
           font-weight: 600;
-          color: rgba(255,255,255,.4);
+          color: var(--secondary-text-color);
         }
-        .val.active { color: #90caf9; }
+        .val.active { color: var(--primary-color, #1e88e5); }
         .unit {
           font-size: 10px;
-          color: rgba(255,255,255,.3);
+          color: var(--secondary-text-color);
           margin-left: 2px;
+          opacity: .7;
         }
 
         .bar-track {
           height: 3px;
-          background: rgba(255,255,255,.08);
+          background: var(--divider-color, rgba(0,0,0,.08));
           border-radius: 2px;
           overflow: hidden;
         }
@@ -177,7 +178,7 @@ class VerbraucherCard extends HTMLElement {
         }
         .bar-fill.high { background: linear-gradient(90deg, #1565c0, #03a9f4); }
         .bar-fill.mid  { background: linear-gradient(90deg, #1e88e5, #90caf9); }
-        .bar-fill.low  { background: rgba(30,136,229,.3); }
+        .bar-fill.low  { background: rgba(30,136,229,.25); }
 
         .empty {
           padding: 20px;
