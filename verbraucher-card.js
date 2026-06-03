@@ -414,6 +414,7 @@ class VerbraucherCardEditor extends HTMLElement {
         if (this._hass) ep.hass = this._hass;
         ep.value = e.entity ?? "";
         ep.includeDomains = ["sensor"];
+        ep.entityFilter = (s) => ["W", "kW"].includes(s.attributes.unit_of_measurement ?? "");
         ep.addEventListener("value-changed", ev => {
           const ents = [...this._config.entities];
           ents[i] = { ...ents[i], entity: ev.detail.value };
@@ -427,6 +428,7 @@ class VerbraucherCardEditor extends HTMLElement {
         if (this._hass) en.hass = this._hass;
         en.value = e.energy_entity ?? "";
         en.includeDomains = ["sensor"];
+        en.entityFilter = (s) => ["kWh", "Wh", "MWh"].includes(s.attributes.unit_of_measurement ?? "");
         en.addEventListener("value-changed", ev => {
           const ents = [...this._config.entities];
           ents[i] = { ...ents[i], energy_entity: ev.detail.value };
@@ -437,6 +439,7 @@ class VerbraucherCardEditor extends HTMLElement {
 
       const nf = this.shadowRoot.getElementById(`name-${i}`);
       if (nf) {
+        nf.value = e.name ?? "";
         nf.addEventListener("change", ev => {
           const ents = [...this._config.entities];
           ents[i] = { ...ents[i], name: ev.target.value || undefined };
