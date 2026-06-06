@@ -1,4 +1,4 @@
-const VERSION = "0.12.0";
+const VERSION = "0.13.0";
 
 const loadEntityPicker = async () => {
   if (customElements.get("ha-entity-picker")) return;
@@ -237,6 +237,20 @@ class VerbraucherCard extends HTMLElement {
         .bar-fill.low  { background: rgba(30,136,229,.25); }
 
         .empty { padding: 20px; text-align: center; color: var(--secondary-text-color); font-size: 13px; }
+
+        .house-bar {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 7px 20px;
+          background: rgba(0,0,0,.18);
+          font-size: 12px;
+          color: rgba(255,255,255,.75);
+          letter-spacing: .3px;
+        }
+        .house-label { color: rgba(255,255,255,.5); text-transform: uppercase; font-size: 11px; letter-spacing: .5px; }
+        .house-value { font-size: 15px; font-weight: 700; color: #fff; }
+        .house-unit { font-size: 11px; color: rgba(255,255,255,.55); margin-left: 3px; }
       </style>
 
       <ha-card>
@@ -262,6 +276,15 @@ class VerbraucherCard extends HTMLElement {
             </div>
           </div>
         </div>
+        ${this._config?.house_entity ? `
+          <div class="house-bar">
+            <span class="house-label">Haus gesamt</span>
+            <div>
+              <span class="house-value" id="house-num">–</span>
+              <span class="house-unit" id="house-unit">W</span>
+            </div>
+          </div>
+        ` : ""}
         <div class="body">
           ${entries.length === 0
             ? '<div class="empty">Keine Verbraucher konfiguriert</div>'
@@ -352,6 +375,30 @@ class VerbraucherCard extends HTMLElement {
       }
     });
 
+    // House total sensor
+    const houseEntity = this._config?.house_entity;
+    if (houseEntity) {
+      const state = this._hass.states[houseEntity];
+      const raw = parseFloat(state?.state ?? "");
+      const houseNum  = this.shadowRoot.getElementById("house-num");
+      const houseUnit = this.shadowRoot.getElementById("house-unit");
+      if (houseNum && houseUnit) {
+        if (!isNaN(raw)) {
+          const unit = state?.attributes?.unit_of_measurement ?? "W";
+          if (unit === "W" && raw >= 1000) {
+            houseNum.textContent  = (raw / 1000).toLocaleString("de-DE", { minimumFractionDigits: 1, maximumFractionDigits: 2 });
+            houseUnit.textContent = "kW";
+          } else {
+            houseNum.textContent  = raw.toLocaleString("de-DE", { maximumFractionDigits: unit === "kW" ? 2 : 0 });
+            houseUnit.textContent = unit;
+          }
+        } else {
+          houseNum.textContent  = "–";
+          houseUnit.textContent = "W";
+        }
+      }
+    }
+
     // Sort rows by current power descending (moves existing DOM nodes, no rebuild)
     const body = this.shadowRoot.querySelector(".body");
     if (body) {
@@ -396,6 +443,8 @@ class VerbraucherCardEditor extends HTMLElement {
       el.hass = hass;
     });
   }
+
+
 
   _fire() {
     this.dispatchEvent(new CustomEvent("config-changed", {
@@ -466,6 +515,8 @@ class VerbraucherCardEditor extends HTMLElement {
           <input type="text" id="title" placeholder="Verbraucher" />
         </div>
 
+        <ha-entity-picker id="house-entity" label="Haus-Gesamtverbrauch (optional)"></ha-entity-picker>
+
         <div class="section-header">
           <span>Verbraucher</span>
           <mwc-button id="add-btn">+ Hinzufügen</mwc-button>
@@ -497,6 +548,19 @@ class VerbraucherCardEditor extends HTMLElement {
       this._config = { ...this._config, title: ev.target.value || undefined };
       this._fire();
     });
+
+    // House entity picker
+    const housePicker = this.shadowRoot.getElementById("house-entity");
+    if (housePicker) {
+      if (this._hass) housePicker.hass = this._hass;
+      housePicker.value = c.house_entity ?? "";
+      housePicker.includeDomains = ["sensor"];
+      housePicker.entityFilter = (s) => ["W", "kW"].includes(s.attributes.unit_of_measurement ?? "");
+      housePicker.addEventListener("value-changed", ev => {
+        this._config = { ...this._config, house_entity: ev.detail.value || undefined };
+        this._fire();
+      });
+    }
 
     // Add
     this.shadowRoot.getElementById("add-btn").addEventListener("click", () => {
