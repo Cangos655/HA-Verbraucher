@@ -1,4 +1,4 @@
-const VERSION = "0.7.0";
+const VERSION = "0.8.0";
 
 const loadEntityPicker = async () => {
   if (customElements.get("ha-entity-picker")) return;
@@ -18,6 +18,8 @@ class VerbraucherCard extends HTMLElement {
     this.attachShadow({ mode: "open" });
     this._config = null;
     this._hass = null;
+    this._energyMap = {};   // entity_id → kWh today
+    this._lastEnergyLoad = 0;
   }
 
   static getConfigElement() {
@@ -25,11 +27,7 @@ class VerbraucherCard extends HTMLElement {
   }
 
   static getStubConfig() {
-    return {
-      type: "custom:verbraucher-card",
-      title: "Verbraucher",
-      entities: [],
-    };
+    return { type: "custom:verbraucher-card", title: "Verbraucher", entities: [] };
   }
 
   getCardSize() {
@@ -41,13 +39,22 @@ class VerbraucherCard extends HTMLElement {
       throw new Error("verbraucher-card: 'entities' muss eine Liste sein");
     }
     this._config = config;
+    this._energyMap = {};
+    this._lastEnergyLoad = 0;
     this._build();
     if (this._hass) this._update();
   }
 
   set hass(hass) {
     this._hass = hass;
-    if (this._config) this._update();
+    if (!this._config) return;
+    this._update();
+    // Reload energy history every 5 minutes
+    const now = Date.now();
+    if (now - this._lastEnergyLoad > 5 * 60 * 1000) {
+      this._lastEnergyLoad = now;
+      this._loadEnergy();
+    }
   }
 
   _power(entry) {
@@ -55,14 +62,75 @@ class VerbraucherCard extends HTMLElement {
     return isNaN(v) ? 0 : v;
   }
 
-  _energy(entry) {
-    const v = parseFloat(this._hass?.states[entry.energy_entity]?.state ?? "");
-    return isNaN(v) ? 0 : v;
+  // Integrate W history → kWh
+  _integrate(states) {
+    if (!states || states.length === 0) return 0;
+    let kwh = 0;
+    for (let i = 1; i < states.length; i++) {
+      const w = parseFloat(states[i - 1].state);
+      if (isNaN(w) || w < 0) continue;
+      const dt = (new Date(states[i].last_changed) - new Date(states[i - 1].last_changed)) / 3_600_000;
+      kwh += (w * dt) / 1000;
+    }
+    // Current open interval (last state → now)
+    const last = states[states.length - 1];
+    const lastW = parseFloat(last.state);
+    if (!isNaN(lastW) && lastW >= 0) {
+      const dt = (Date.now() - new Date(last.last_changed)) / 3_600_000;
+      kwh += (lastW * dt) / 1000;
+    }
+    return kwh;
+  }
+
+  async _loadEnergy() {
+    if (!this._config || !this._hass) return;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const start = today.toISOString();
+
+    for (const entry of this._config.entities) {
+      if (!entry.entity) continue;
+      try {
+        const data = await this._hass.callApi(
+          "GET",
+          `history/period/${start}?filter_entity_id=${entry.entity}&minimal_response=true&no_attributes=true`
+        );
+        this._energyMap[entry.entity] = this._integrate(data?.[0] ?? []);
+      } catch (_) {
+        this._energyMap[entry.entity] = 0;
+      }
+    }
+    this._renderEnergy();
+  }
+
+  _renderEnergy() {
+    const entries = this._config?.entities ?? [];
+    const total = entries.reduce((s, e) => s + (this._energyMap[e.entity] ?? 0), 0);
+
+    const totalEl = this.shadowRoot.getElementById("total-num");
+    if (totalEl) {
+      totalEl.textContent = total.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+    entries.forEach((entry, i) => {
+      const el = this.shadowRoot.getElementById(`energy-${i}`);
+      if (el) {
+        const kwh = this._energyMap[entry.entity] ?? 0;
+        el.textContent = kwh.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      }
+    });
+  }
+
+  _moreInfo(entityId) {
+    this.dispatchEvent(new CustomEvent("hass-more-info", {
+      bubbles: true,
+      composed: true,
+      detail: { entityId },
+    }));
   }
 
   _build() {
     const entries = this._config?.entities ?? [];
-    const title = this._config?.title ?? "Verbraucher";
+    const title   = this._config?.title ?? "Verbraucher";
 
     this.shadowRoot.innerHTML = `
       <style>
@@ -94,32 +162,22 @@ class VerbraucherCard extends HTMLElement {
           border-radius: 10px;
           padding: 2px 8px;
         }
-        .total-row {
-          display: flex;
-          align-items: flex-end;
-          gap: 6px;
-        }
-        .total-num {
-          font-size: 32px;
-          font-weight: 700;
-          color: #fff;
-          line-height: 1;
-        }
-        .total-unit {
-          font-size: 14px;
-          color: rgba(255,255,255,.6);
-          margin-bottom: 3px;
-        }
+        .total-row { display: flex; align-items: flex-end; gap: 6px; }
+        .total-num { font-size: 32px; font-weight: 700; color: #fff; line-height: 1; }
+        .total-unit { font-size: 14px; color: rgba(255,255,255,.6); margin-bottom: 3px; }
 
         .body { padding: 4px 0; }
 
         .row {
           padding: 10px 20px;
           border-bottom: 1px solid var(--divider-color, rgba(0,0,0,.1));
-          transition: background .2s;
+          cursor: pointer;
+          transition: background .15s;
         }
         .row:last-child { border-bottom: none; }
+        .row:hover { background: rgba(30,136,229,.04); }
         .row.active { background: rgba(30,136,229,.06); }
+        .row.active:hover { background: rgba(30,136,229,.1); }
 
         .row-top {
           display: flex;
@@ -127,17 +185,8 @@ class VerbraucherCard extends HTMLElement {
           align-items: center;
           margin-bottom: 6px;
         }
-        .row-left {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          min-width: 0;
-        }
-        .icon {
-          --mdc-icon-size: 18px;
-          color: var(--primary-color, #1e88e5);
-          flex-shrink: 0;
-        }
+        .row-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
+        .icon { --mdc-icon-size: 18px; color: var(--primary-color, #1e88e5); flex-shrink: 0; }
         .name {
           font-size: 13px;
           font-weight: 500;
@@ -146,24 +195,11 @@ class VerbraucherCard extends HTMLElement {
           overflow: hidden;
           text-overflow: ellipsis;
         }
-        .row-right {
-          display: flex;
-          gap: 14px;
-          flex-shrink: 0;
-        }
+        .row-right { display: flex; gap: 14px; flex-shrink: 0; }
         .val-block { text-align: right; }
-        .val {
-          font-size: 13px;
-          font-weight: 600;
-          color: var(--secondary-text-color);
-        }
+        .val { font-size: 13px; font-weight: 600; color: var(--secondary-text-color); }
         .val.active { color: var(--primary-color, #1e88e5); }
-        .unit {
-          font-size: 10px;
-          color: var(--secondary-text-color);
-          margin-left: 2px;
-          opacity: .7;
-        }
+        .unit { font-size: 10px; color: var(--secondary-text-color); margin-left: 2px; opacity: .7; }
 
         .bar-track {
           height: 3px;
@@ -171,21 +207,12 @@ class VerbraucherCard extends HTMLElement {
           border-radius: 2px;
           overflow: hidden;
         }
-        .bar-fill {
-          height: 100%;
-          border-radius: 2px;
-          transition: width .5s ease;
-        }
+        .bar-fill { height: 100%; border-radius: 2px; transition: width .5s ease; }
         .bar-fill.high { background: linear-gradient(90deg, #1565c0, #03a9f4); }
         .bar-fill.mid  { background: linear-gradient(90deg, #1e88e5, #90caf9); }
         .bar-fill.low  { background: rgba(30,136,229,.25); }
 
-        .empty {
-          padding: 20px;
-          text-align: center;
-          color: var(--secondary-text-color);
-          font-size: 13px;
-        }
+        .empty { padding: 20px; text-align: center; color: var(--secondary-text-color); font-size: 13px; }
       </style>
 
       <ha-card>
@@ -196,14 +223,14 @@ class VerbraucherCard extends HTMLElement {
           </div>
           <div class="total-row">
             <span class="total-num" id="total-num">–</span>
-            <span class="total-unit" id="total-unit">${entries.some(e => e.energy_entity) ? "kWh heute" : "W gesamt"}</span>
+            <span class="total-unit">kWh heute</span>
           </div>
         </div>
         <div class="body">
           ${entries.length === 0
             ? '<div class="empty">Keine Verbraucher konfiguriert</div>'
             : entries.map((e, i) => `
-                <div class="row" id="row-${i}">
+                <div class="row" id="row-${i}" data-entity="${e.entity}">
                   <div class="row-top">
                     <div class="row-left">
                       <ha-icon class="icon" id="icon-${i}" icon="${e.icon ?? "mdi:lightning-bolt"}"></ha-icon>
@@ -214,11 +241,10 @@ class VerbraucherCard extends HTMLElement {
                         <span class="val" id="power-${i}">–</span>
                         <span class="unit">W</span>
                       </div>
-                      ${e.energy_entity ? `
                       <div class="val-block">
                         <span class="val" id="energy-${i}">–</span>
                         <span class="unit">kWh</span>
-                      </div>` : ""}
+                      </div>
                     </div>
                   </div>
                   <div class="bar-track">
@@ -230,31 +256,24 @@ class VerbraucherCard extends HTMLElement {
         </div>
       </ha-card>
     `;
+
+    // Click → More-info (event delegation on body)
+    this.shadowRoot.querySelector(".body").addEventListener("click", ev => {
+      const row = ev.target.closest(".row[data-entity]");
+      if (row) this._moreInfo(row.dataset.entity);
+    });
   }
 
   _update() {
     if (!this._config || !this._hass) return;
 
-    const entries = this._config.entities ?? [];
-    const powers = entries.map(e => this._power(e));
+    const entries  = this._config.entities ?? [];
+    const powers   = entries.map(e => this._power(e));
     const maxPower = Math.max(...powers, 1);
-    const totalEnergy = entries.reduce((s, e) => s + this._energy(e), 0);
-
-    const hasEnergy = entries.some(e => e.energy_entity);
-    const totalEl = this.shadowRoot.getElementById("total-num");
-    if (totalEl) {
-      if (hasEnergy) {
-        totalEl.textContent = totalEnergy.toLocaleString("de-DE", { minimumFractionDigits: 1, maximumFractionDigits: 2 });
-      } else {
-        const totalPower = powers.reduce((s, p) => s + p, 0);
-        totalEl.textContent = totalPower.toLocaleString("de-DE", { maximumFractionDigits: 0 });
-      }
-    }
 
     entries.forEach((entry, i) => {
-      const power = powers[i];
-      const energy = this._energy(entry);
-      const pct = Math.round((power / maxPower) * 100);
+      const power  = powers[i];
+      const pct    = Math.round((power / maxPower) * 100);
       const active = power > 0;
 
       const row = this.shadowRoot.getElementById(`row-${i}`);
@@ -263,21 +282,13 @@ class VerbraucherCard extends HTMLElement {
       const powerEl = this.shadowRoot.getElementById(`power-${i}`);
       if (powerEl) {
         powerEl.textContent = power.toLocaleString("de-DE", { maximumFractionDigits: 0 });
-        powerEl.className = "val" + (active ? " active" : "");
-      }
-
-      const energyEl = this.shadowRoot.getElementById(`energy-${i}`);
-      if (energyEl) {
-        energyEl.textContent = energy.toLocaleString("de-DE", {
-          minimumFractionDigits: 1,
-          maximumFractionDigits: 2,
-        });
+        powerEl.className   = "val" + (active ? " active" : "");
       }
 
       const bar = this.shadowRoot.getElementById(`bar-${i}`);
       if (bar) {
         bar.style.width = pct + "%";
-        bar.className = "bar-fill " + (pct > 50 ? "high" : pct > 15 ? "mid" : "low");
+        bar.className   = "bar-fill " + (pct > 50 ? "high" : pct > 15 ? "mid" : "low");
       }
 
       const iconEl = this.shadowRoot.getElementById(`icon-${i}`);
