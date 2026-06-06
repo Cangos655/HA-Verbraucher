@@ -1,4 +1,4 @@
-const VERSION = "0.11.0";
+const VERSION = "0.12.0";
 
 const loadEntityPicker = async () => {
   if (customElements.get("ha-entity-picker")) return;
@@ -111,11 +111,28 @@ class VerbraucherCard extends HTMLElement {
     if (totalEl) {
       totalEl.textContent = total.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
+
+    // Find top 3 indices by kWh
+    const ranked = entries
+      .map((entry, i) => ({ i, kwh: this._energyMap[entry.entity] ?? 0 }))
+      .filter(x => x.kwh > 0)
+      .sort((a, b) => b.kwh - a.kwh)
+      .slice(0, 3)
+      .map((x, rank) => ({ i: x.i, rank: rank + 1 }));
+
+    const rankMap = Object.fromEntries(ranked.map(x => [x.i, x.rank]));
+
     entries.forEach((entry, i) => {
       const el = this.shadowRoot.getElementById(`energy-${i}`);
       if (el) {
         const kwh = this._energyMap[entry.entity] ?? 0;
         el.textContent = kwh.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      }
+
+      const row = this.shadowRoot.getElementById(`row-${i}`);
+      if (row) {
+        row.classList.remove("rank-1", "rank-2", "rank-3");
+        if (rankMap[i]) row.classList.add(`rank-${rankMap[i]}`);
       }
     });
   }
@@ -178,9 +195,13 @@ class VerbraucherCard extends HTMLElement {
           transition: background .15s;
         }
         .row:last-child { border-bottom: none; }
-        .row:hover { background: rgba(30,136,229,.04); }
-        .row.active { background: rgba(30,136,229,.06); }
-        .row.active:hover { background: rgba(30,136,229,.1); }
+        .row:hover { background: rgba(0,0,0,.03); }
+        .row.rank-1 { background: rgba(255,152,0,.13); border-left: 3px solid rgba(255,152,0,.8); }
+        .row.rank-2 { background: rgba(255,152,0,.07); border-left: 3px solid rgba(255,152,0,.45); }
+        .row.rank-3 { background: rgba(255,152,0,.03); border-left: 3px solid rgba(255,152,0,.2); }
+        .row.rank-1:hover { background: rgba(255,152,0,.18); }
+        .row.rank-2:hover { background: rgba(255,152,0,.11); }
+        .row.rank-3:hover { background: rgba(255,152,0,.07); }
 
         .row-top {
           display: flex;
@@ -307,7 +328,10 @@ class VerbraucherCard extends HTMLElement {
       const active = power > 0;
 
       const row = this.shadowRoot.getElementById(`row-${i}`);
-      if (row) row.className = "row" + (active ? " active" : "");
+      if (row) {
+        // Preserve rank-* classes set by _renderEnergy, only toggle active W styling
+        row.classList.remove("active");
+      }
 
       const powerEl = this.shadowRoot.getElementById(`power-${i}`);
       if (powerEl) {
