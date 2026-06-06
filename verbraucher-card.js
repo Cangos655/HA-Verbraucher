@@ -1,4 +1,4 @@
-const VERSION = "0.8.0";
+const VERSION = "0.9.0";
 
 const loadEntityPicker = async () => {
   if (customElements.get("ha-entity-picker")) return;
@@ -162,9 +162,13 @@ class VerbraucherCard extends HTMLElement {
           border-radius: 10px;
           padding: 2px 8px;
         }
-        .total-row { display: flex; align-items: flex-end; gap: 6px; }
+        .total-row { display: flex; align-items: flex-end; gap: 6px; margin-bottom: 6px; }
         .total-num { font-size: 32px; font-weight: 700; color: #fff; line-height: 1; }
         .total-unit { font-size: 14px; color: rgba(255,255,255,.6); margin-bottom: 3px; }
+        .current-row { display: flex; align-items: center; gap: 6px; }
+        .current-num { font-size: 16px; font-weight: 600; color: rgba(255,255,255,.9); }
+        .current-unit { font-size: 13px; color: rgba(255,255,255,.55); }
+        .current-label { font-size: 12px; color: rgba(255,255,255,.45); margin-left: 2px; }
 
         .body { padding: 4px 0; }
 
@@ -225,6 +229,11 @@ class VerbraucherCard extends HTMLElement {
             <span class="total-num" id="total-num">–</span>
             <span class="total-unit">kWh heute</span>
           </div>
+          <div class="current-row">
+            <span class="current-num" id="current-w">–</span>
+            <span class="current-unit" id="current-unit">W</span>
+            <span class="current-label">aktuell</span>
+          </div>
         </div>
         <div class="body">
           ${entries.length === 0
@@ -267,9 +276,23 @@ class VerbraucherCard extends HTMLElement {
   _update() {
     if (!this._config || !this._hass) return;
 
-    const entries  = this._config.entities ?? [];
-    const powers   = entries.map(e => this._power(e));
-    const maxPower = Math.max(...powers, 1);
+    const entries   = this._config.entities ?? [];
+    const powers    = entries.map(e => this._power(e));
+    const maxPower  = Math.max(...powers, 1);
+    const totalW    = powers.reduce((s, p) => s + p, 0);
+
+    // Header: current total W or kW
+    const currentEl   = this.shadowRoot.getElementById("current-w");
+    const currentUnit = this.shadowRoot.getElementById("current-unit");
+    if (currentEl && currentUnit) {
+      if (totalW >= 1000) {
+        currentEl.textContent   = (totalW / 1000).toLocaleString("de-DE", { minimumFractionDigits: 1, maximumFractionDigits: 2 });
+        currentUnit.textContent = "kW";
+      } else {
+        currentEl.textContent   = totalW.toLocaleString("de-DE", { maximumFractionDigits: 0 });
+        currentUnit.textContent = "W";
+      }
+    }
 
     entries.forEach((entry, i) => {
       const power  = powers[i];
