@@ -1,4 +1,4 @@
-const VERSION = "0.10.0";
+const VERSION = "0.11.0";
 
 const loadEntityPicker = async () => {
   if (customElements.get("ha-entity-picker")) return;
@@ -300,6 +300,7 @@ class VerbraucherCard extends HTMLElement {
       }
     }
 
+    // Update values for each row
     entries.forEach((entry, i) => {
       const power  = powers[i];
       const pct    = Math.round((power / maxPower) * 100);
@@ -326,6 +327,16 @@ class VerbraucherCard extends HTMLElement {
         iconEl.setAttribute("icon", entry.icon ?? stateIcon ?? "mdi:lightning-bolt");
       }
     });
+
+    // Sort rows by current power descending (moves existing DOM nodes, no rebuild)
+    const body = this.shadowRoot.querySelector(".body");
+    if (body) {
+      const sorted = entries.map((_, i) => i).sort((a, b) => powers[b] - powers[a]);
+      sorted.forEach(i => {
+        const row = this.shadowRoot.getElementById(`row-${i}`);
+        if (row) body.appendChild(row);
+      });
+    }
   }
 }
 
@@ -409,27 +420,13 @@ class VerbraucherCardEditor extends HTMLElement {
           display: flex;
           flex-direction: column;
           gap: 10px;
-          transition: opacity .15s, border-color .15s;
         }
-        .entry.dragging { opacity: 0.4; }
-        .entry.drag-over { border-color: var(--primary-color, #1e88e5); background: rgba(30,136,229,.04); }
         .entry-header {
           display: flex;
           align-items: center;
-          gap: 4px;
+          justify-content: space-between;
         }
-        .drag-handle {
-          cursor: grab;
-          color: var(--secondary-text-color, #aaa);
-          font-size: 20px;
-          line-height: 1;
-          padding: 0 4px 0 0;
-          user-select: none;
-          flex-shrink: 0;
-        }
-        .drag-handle:active { cursor: grabbing; }
         .entry-label {
-          flex: 1;
           font-size: 13px;
           font-weight: 500;
           color: var(--secondary-text-color);
@@ -451,9 +448,8 @@ class VerbraucherCardEditor extends HTMLElement {
         </div>
 
         ${entries.map((e, i) => `
-          <div class="entry" draggable="true" data-index="${i}">
+          <div class="entry" data-index="${i}">
             <div class="entry-header">
-              <span class="drag-handle">⠿</span>
               <span class="entry-label">${e.name ? e.name : "Eintrag " + (i + 1)}</span>
               <ha-icon-button data-remove="${i}">
                 <ha-icon icon="mdi:delete"></ha-icon>
@@ -493,39 +489,6 @@ class VerbraucherCardEditor extends HTMLElement {
         const idx = parseInt(ev.currentTarget.dataset.remove);
         const entities = [...(this._config.entities ?? [])];
         entities.splice(idx, 1);
-        this._config = { ...this._config, entities };
-        this._fire();
-        this._render();
-      });
-    });
-
-    // Drag-to-reorder
-    let dragSrc = null;
-    this.shadowRoot.querySelectorAll(".entry[draggable]").forEach(el => {
-      el.addEventListener("dragstart", ev => {
-        dragSrc = parseInt(el.dataset.index);
-        ev.dataTransfer.effectAllowed = "move";
-        setTimeout(() => el.classList.add("dragging"), 0);
-      });
-      el.addEventListener("dragend", () => {
-        el.classList.remove("dragging");
-        this.shadowRoot.querySelectorAll(".entry").forEach(e => e.classList.remove("drag-over"));
-      });
-      el.addEventListener("dragover", ev => {
-        ev.preventDefault();
-        ev.dataTransfer.dropEffect = "move";
-        this.shadowRoot.querySelectorAll(".entry").forEach(e => e.classList.remove("drag-over"));
-        el.classList.add("drag-over");
-      });
-      el.addEventListener("dragleave", () => el.classList.remove("drag-over"));
-      el.addEventListener("drop", ev => {
-        ev.preventDefault();
-        const toIdx = parseInt(el.dataset.index);
-        if (dragSrc === null || dragSrc === toIdx) return;
-        const entities = [...this._config.entities];
-        const [moved] = entities.splice(dragSrc, 1);
-        entities.splice(toIdx, 0, moved);
-        dragSrc = null;
         this._config = { ...this._config, entities };
         this._fire();
         this._render();
