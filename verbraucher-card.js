@@ -1,4 +1,4 @@
-const VERSION = "0.13.0";
+const VERSION = "0.14.0";
 
 const loadEntityPicker = async () => {
   if (customElements.get("ha-entity-picker")) return;
@@ -58,8 +58,12 @@ class VerbraucherCard extends HTMLElement {
   }
 
   _power(entry) {
-    const v = parseFloat(this._hass?.states[entry.entity]?.state ?? "");
-    return isNaN(v) ? 0 : v;
+    const state = this._hass?.states[entry.entity];
+    const v = parseFloat(state?.state ?? "");
+    if (isNaN(v) || v < 0) return 0;
+    // Normalize to W so sorting, totals and bars are consistent
+    const unit = state?.attributes?.unit_of_measurement ?? "W";
+    return unit === "kW" ? v * 1000 : v;
   }
 
   // Integrate W history → kWh
@@ -298,7 +302,7 @@ class VerbraucherCard extends HTMLElement {
                     <div class="row-right">
                       <div class="val-block">
                         <span class="val" id="power-${i}">–</span>
-                        <span class="unit">W</span>
+                        <span class="unit" id="power-unit-${i}">W</span>
                       </div>
                       <div class="val-block">
                         <span class="val" id="energy-${i}">–</span>
@@ -356,10 +360,17 @@ class VerbraucherCard extends HTMLElement {
         row.classList.remove("active");
       }
 
-      const powerEl = this.shadowRoot.getElementById(`power-${i}`);
+      const powerEl   = this.shadowRoot.getElementById(`power-${i}`);
+      const powerUnit = this.shadowRoot.getElementById(`power-unit-${i}`);
       if (powerEl) {
-        powerEl.textContent = power.toLocaleString("de-DE", { maximumFractionDigits: 0 });
-        powerEl.className   = "val" + (active ? " active" : "");
+        if (power >= 1000) {
+          powerEl.textContent = (power / 1000).toLocaleString("de-DE", { minimumFractionDigits: 1, maximumFractionDigits: 2 });
+          if (powerUnit) powerUnit.textContent = "kW";
+        } else {
+          powerEl.textContent = power.toLocaleString("de-DE", { maximumFractionDigits: 0 });
+          if (powerUnit) powerUnit.textContent = "W";
+        }
+        powerEl.className = "val" + (active ? " active" : "");
       }
 
       const bar = this.shadowRoot.getElementById(`bar-${i}`);
