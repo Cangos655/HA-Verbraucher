@@ -1,4 +1,4 @@
-const VERSION = "0.9.0";
+const VERSION = "0.10.0";
 
 const loadEntityPicker = async () => {
   if (customElements.get("ha-entity-picker")) return;
@@ -162,13 +162,12 @@ class VerbraucherCard extends HTMLElement {
           border-radius: 10px;
           padding: 2px 8px;
         }
-        .total-row { display: flex; align-items: flex-end; gap: 6px; margin-bottom: 6px; }
-        .total-num { font-size: 32px; font-weight: 700; color: #fff; line-height: 1; }
-        .total-unit { font-size: 14px; color: rgba(255,255,255,.6); margin-bottom: 3px; }
-        .current-row { display: flex; align-items: center; gap: 6px; }
-        .current-num { font-size: 16px; font-weight: 600; color: rgba(255,255,255,.9); }
-        .current-unit { font-size: 13px; color: rgba(255,255,255,.55); }
-        .current-label { font-size: 12px; color: rgba(255,255,255,.45); margin-left: 2px; }
+        .stats-row { display: flex; align-items: flex-end; gap: 24px; }
+        .stat { display: flex; flex-direction: column; gap: 2px; }
+        .stat-label { font-size: 11px; color: rgba(255,255,255,.5); text-transform: uppercase; letter-spacing: .5px; }
+        .stat-value { display: flex; align-items: flex-end; gap: 4px; }
+        .stat-num { font-size: 28px; font-weight: 700; color: #fff; line-height: 1; }
+        .stat-unit { font-size: 13px; color: rgba(255,255,255,.6); margin-bottom: 3px; }
 
         .body { padding: 4px 0; }
 
@@ -225,14 +224,21 @@ class VerbraucherCard extends HTMLElement {
             <span class="title">${title}</span>
             <span class="version">v${VERSION}</span>
           </div>
-          <div class="total-row">
-            <span class="total-num" id="total-num">–</span>
-            <span class="total-unit">kWh heute</span>
-          </div>
-          <div class="current-row">
-            <span class="current-num" id="current-w">–</span>
-            <span class="current-unit" id="current-unit">W</span>
-            <span class="current-label">aktuell</span>
+          <div class="stats-row">
+            <div class="stat">
+              <span class="stat-label">Aktuell</span>
+              <div class="stat-value">
+                <span class="stat-num" id="current-w">–</span>
+                <span class="stat-unit" id="current-unit">W</span>
+              </div>
+            </div>
+            <div class="stat">
+              <span class="stat-label">Heute</span>
+              <div class="stat-value">
+                <span class="stat-num" id="total-num">–</span>
+                <span class="stat-unit">kWh</span>
+              </div>
+            </div>
           </div>
         </div>
         <div class="body">
