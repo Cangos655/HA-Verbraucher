@@ -1,4 +1,4 @@
-const VERSION = "0.14.0";
+const VERSION = "0.15.0";
 
 const loadEntityPicker = async () => {
   if (customElements.get("ha-entity-picker")) return;
@@ -66,22 +66,21 @@ class VerbraucherCard extends HTMLElement {
     return unit === "kW" ? v * 1000 : v;
   }
 
-  // Integrate W history → kWh
-  _integrate(states) {
+  // Integrate power history → kWh. divisor=1000 for W sensors, 1 for kW sensors.
+  _integrate(states, divisor = 1000) {
     if (!states || states.length === 0) return 0;
     let kwh = 0;
     for (let i = 1; i < states.length; i++) {
-      const w = parseFloat(states[i - 1].state);
-      if (isNaN(w) || w < 0) continue;
+      const v = parseFloat(states[i - 1].state);
+      if (isNaN(v) || v < 0) continue;
       const dt = (new Date(states[i].last_changed) - new Date(states[i - 1].last_changed)) / 3_600_000;
-      kwh += (w * dt) / 1000;
+      kwh += (v * dt) / divisor;
     }
-    // Current open interval (last state → now)
     const last = states[states.length - 1];
-    const lastW = parseFloat(last.state);
-    if (!isNaN(lastW) && lastW >= 0) {
+    const lastV = parseFloat(last.state);
+    if (!isNaN(lastV) && lastV >= 0) {
       const dt = (Date.now() - new Date(last.last_changed)) / 3_600_000;
-      kwh += (lastW * dt) / 1000;
+      kwh += (lastV * dt) / divisor;
     }
     return kwh;
   }
@@ -95,11 +94,13 @@ class VerbraucherCard extends HTMLElement {
     for (const entry of this._config.entities) {
       if (!entry.entity) continue;
       try {
+        const unit = this._hass.states[entry.entity]?.attributes?.unit_of_measurement ?? "W";
+        const divisor = unit === "kW" ? 1 : 1000;
         const data = await this._hass.callApi(
           "GET",
           `history/period/${start}?filter_entity_id=${entry.entity}&minimal_response=true&no_attributes=true`
         );
-        this._energyMap[entry.entity] = this._integrate(data?.[0] ?? []);
+        this._energyMap[entry.entity] = this._integrate(data?.[0] ?? [], divisor);
       } catch (_) {
         this._energyMap[entry.entity] = 0;
       }
