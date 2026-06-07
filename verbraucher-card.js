@@ -1,4 +1,4 @@
-const VERSION = "0.15.0";
+const VERSION = "0.16.0";
 
 const loadEntityPicker = async () => {
   if (customElements.get("ha-entity-picker")) return;
@@ -252,7 +252,10 @@ class VerbraucherCard extends HTMLElement {
           font-size: 12px;
           color: rgba(255,255,255,.75);
           letter-spacing: .3px;
+          cursor: pointer;
+          transition: background .15s;
         }
+        .house-bar:hover { background: rgba(0,0,0,.28); }
         .house-label { color: rgba(255,255,255,.5); text-transform: uppercase; font-size: 11px; letter-spacing: .5px; }
         .house-value { font-size: 15px; font-weight: 700; color: #fff; }
         .house-unit { font-size: 11px; color: rgba(255,255,255,.55); margin-left: 3px; }
@@ -326,6 +329,12 @@ class VerbraucherCard extends HTMLElement {
       const row = ev.target.closest(".row[data-entity]");
       if (row) this._moreInfo(row.dataset.entity);
     });
+
+    // House bar click → More-info
+    const houseBar = this.shadowRoot.querySelector(".house-bar");
+    if (houseBar && this._config?.house_entity) {
+      houseBar.addEventListener("click", () => this._moreInfo(this._config.house_entity));
+    }
   }
 
   _update() {
